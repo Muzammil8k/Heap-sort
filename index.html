@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heap Sort Animation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            /* This variable is updated by JS when you move the speed slider */
+            --anim-duration: 0.5s; 
+        }
+        .node {
+            /* Animate physical movement smoothly, snap colors quickly */
+            transition: left var(--anim-duration) ease-in-out, top var(--anim-duration) ease-in-out, background-color 0.2s, transform 0.2s;
+        }
+        .array-box {
+            transition: left var(--anim-duration) ease-in-out, background-color 0.2s, transform 0.2s;
+            position: absolute;
+        }
+        .index-label {
+            position: absolute;
+            transform: translateX(-50%);
+        }
+        svg line {
+            /* Lines redraw quickly to match new structures */
+            transition: stroke 0.2s;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
+
+    <!-- Header Section -->
+    <header class="p-4 text-center bg-gray-800 shadow-lg z-10">
+        <h1 class="text-2xl font-bold text-green-400 mb-1">Heap Sort Visualizer</h1>
+        <p class="text-gray-300 text-sm">Sorting Array: <span id="current-array-display" class="font-mono text-yellow-300">[5, 2, 1, 7, 3, 9, 10, 8, 6, 4]</span></p>
+        
+        <!-- Custom Input Area -->
+        <div class="mt-3 flex justify-center items-center gap-2 max-w-lg mx-auto">
+            <input type="text" id="array-input" class="flex-grow px-3 py-1.5 bg-gray-700 text-white border border-gray-600 rounded text-sm focus:outline-none focus:border-green-400 font-mono" placeholder="Enter numbers (e.g. 10 4 3 5 1)">
+            <button id="btn-update" class="px-4 py-1.5 bg-green-600 hover:bg-green-500 rounded text-sm font-semibold transition-colors shadow whitespace-nowrap">Load Array</button>
+        </div>
+    </header>
+
+    <!-- Main Visualization Area -->
+    <main class="flex-grow flex flex-col overflow-hidden">
+        
+        <!-- Array Representation -->
+        <div class="py-4 px-4 flex flex-col items-center justify-center bg-gray-800/50">
+            <h2 class="text-xs text-gray-400 mb-2 uppercase tracking-widest">Array State</h2>
+            <div class="relative w-full max-w-2xl h-8 md:h-10 mx-auto" id="array-container">
+                <!-- Array boxes injected by JS -->
+            </div>
+            <div class="relative w-full max-w-2xl h-6 mx-auto mt-2" id="index-container">
+                <!-- Indices injected by JS -->
+            </div>
+        </div>
+
+        <!-- Tree Representation -->
+        <div class="relative flex-grow w-full max-w-5xl mx-auto mt-4 min-h-[250px]" id="tree-container">
+            <!-- SVG for lines -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" id="svg-layer"></svg>
+            <!-- Nodes injected by JS -->
+        </div>
+
+    </main>
+
+    <!-- Controls and Status -->
+    <footer class="p-4 bg-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
+        
+        <!-- Status Message -->
+        <div class="text-center mb-3">
+            <div class="inline-block bg-gray-700 px-4 py-2 rounded-xl border border-gray-600 shadow-inner min-w-[300px]">
+                <p id="status-message" class="text-base font-semibold text-green-300"></p>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="flex flex-wrap justify-center items-center gap-4">
+            <button id="btn-reset" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded font-semibold transition-colors flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Restart
+            </button>
+            <button id="btn-prev" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold transition-colors flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                Prev
+            </button>
+            <button id="btn-play" class="px-6 py-2 bg-green-600 hover:bg-green-500 rounded font-bold transition-colors flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Play
+            </button>
+            <button id="btn-next" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold transition-colors flex items-center gap-2">
+                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+
+            <!-- Speed Slider -->
+            <div class="flex items-center gap-2 ml-4 bg-gray-700 px-3 py-1 rounded">
+                <span class="text-sm text-gray-300">Speed:</span>
+                <input type="range" id="speed-slider" min="100" max="2000" step="100" value="1300" class="w-20 md:w-24">
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="flex justify-center gap-4 mt-3 text-xs md:text-sm text-gray-400">
+            <div class="flex items-center gap-1 md:gap-2"><div class="w-3 h-3 rounded-full bg-white"></div> Normal</div>
+            <div class="flex items-center gap-1 md:gap-2"><div class="w-3 h-3 rounded-full bg-yellow-400"></div> Comparing</div>
+            <div class="flex items-center gap-1 md:gap-2"><div class="w-3 h-3 rounded-full bg-red-400"></div> Swapping</div>
+            <div class="flex items-center gap-1 md:gap-2"><div class="w-3 h-3 rounded-full bg-green-500"></div> Sorted/Locked</div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Algorithm Engine: Pre-compute all states ---
+        let states = [];
+        // Track by Object IDs instead of values to support Duplicate numbers safely
+        let originalArray = [5, 2, 1, 7, 3, 9, 10, 8, 6, 4].map((val, id) => ({ id, val }));
+        let A = [];
+        let locked = [];
+
+        function pushState(msg, active = [], swap = []) {
+            states.push({
+                arr: A.map(obj => ({ ...obj })), // clone objects to preserve order at this step
+                locked: [...locked],
+                active: active,
+                swap: swap,
+                msg: msg
+            });
+        }
+
+        function heapify(n, i) {
+            let largest = i;
+            let l = 2 * i + 1;
+            let r = 2 * i + 2;
+
+            let comparedNodes = [i];
+            if (l < n) comparedNodes.push(l);
+            if (r < n) comparedNodes.push(r);
+
+            pushState(`Comparing parent ${A[i].val} with children`, comparedNodes);
+
+            if (l < n && A[l].val > A[largest].val) largest = l;
+            if (r < n && A[r].val > A[largest].val) largest = r;
+
+            if (largest !== i) {
+                pushState(`Largest is ${A[largest].val}. Swapping ${A[i].val} and ${A[largest].val}`, [], [i, largest]);
+                let temp = A[i];
+                A[i] = A[largest];
+                A[largest] = temp;
+                pushState(`Swapped. Now heapifying affected sub-tree.`, [i, largest]);
+                heapify(n, largest);
+            } else {
+                pushState(`Parent ${A[i].val} is already largest. No swap needed.`, [i]);
+            }
+        }
+
+        function generateHeapSortStates() {
+            states = [];
+            A = originalArray.map(obj => ({ ...obj }));
+            locked = [];
+            let n = A.length;
+
+            pushState("Initialization: Starting with the unsorted array.", []);
+
+            for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+                pushState(`Phase 1: Building Max Heap. Heapify starting from index ${i} (value ${A[i].val})`, [i]);
+                heapify(n, i);
+            }
+
+            pushState("Max Heap is fully built! The largest element is now at the root.", [0]);
+
+            for (let i = n - 1; i > 0; i--) {
+                pushState(`Phase 2: Extract Max. Swapping root (${A[0].val}) with last leaf (${A[i].val}).`, [], [0, i]);
+                let temp = A[0];
+                A[0] = A[i];
+                A[i] = temp;
+                
+                locked.push(i); 
+                pushState(`Node ${A[i].val} is now locked in its final sorted position!`, [i]);
+                
+                pushState(`Heap size reduced. Heapifying root to restore Max Heap.`, [0]);
+                heapify(i, 0);
+            }
+            
+            locked.push(0);
+            pushState("Heap Sort Complete! The array is fully sorted.", []);
+        }
+
+        // --- Persistent DOM Engine ---
+        const arrayContainer = document.getElementById('array-container');
+        const indexContainer = document.getElementById('index-container');
+        const treeContainer = document.getElementById('tree-container');
+        const svgLayer = document.getElementById('svg-layer');
+        const statusMessage = document.getElementById('status-message');
+        
+        let currentStep = 0;
+        let isPlaying = false;
+        let playInterval = null;
+
+        // Dictionaries to track DOM elements by their unique IDs
+        const nodeElements = {};
+        const arrayElements = {};
+
+        function getCoords(index) {
+            const level = Math.floor(Math.log2(index + 1));
+            const nodesInLevel = Math.pow(2, level);
+            const positionInLevel = index - (nodesInLevel - 1);
+            const xPercent = ((positionInLevel + 0.5) / nodesInLevel) * 100;
+            const yPx = level * 60 + 25; 
+            return { x: xPercent, y: yPx };
+        }
+
+        // Initialize DOM elements ONCE to allow CSS animations between states
+        function initializeDOM() {
+            arrayContainer.innerHTML = '';
+            indexContainer.innerHTML = '';
+            treeContainer.querySelectorAll('.node').forEach(el => el.remove());
+            const n = originalArray.length;
+
+            originalArray.forEach((obj, i) => {
+                const horizontalSpacing = `calc(${(i + 0.5) * (100 / n)}%)`;
+
+                // 1. Array Box Setup
+                const box = document.createElement('div');
+                box.className = `array-box w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded text-base font-bold border-2 shadow z-10`;
+                box.textContent = obj.val;
+                box.style.left = horizontalSpacing;
+                box.style.transform = `translateX(-50%) scale(1)`; // center dynamically
+                arrayContainer.appendChild(box);
+                arrayElements[obj.id] = box; // Track by ID
+
+                // 2. Index Display Setup
+                const idx = document.createElement('div');
+                idx.className = `index-label w-8 md:w-10 text-center text-xs text-gray-500 font-mono`;
+                idx.style.left = horizontalSpacing;
+                idx.textContent = i;
+                indexContainer.appendChild(idx);
+
+                // 3. Tree Node Setup
+                const node = document.createElement('div');
+                node.className = `node absolute w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full font-bold text-base shadow-lg border-2 z-10`;
+                node.textContent = obj.val;
+                const coords = getCoords(i);
+                node.style.left = `calc(${coords.x}%)`;
+                node.style.top = `${coords.y}px`;
+                node.style.transform = `translate(-50%, -50%) scale(1)`;
+                treeContainer.appendChild(node);
+                nodeElements[obj.id] = node; // Track by ID
+            });
+        }
+
+        function renderStep(stepIndex) {
+            if (stepIndex < 0 || stepIndex >= states.length) return;
+            const state = states[stepIndex];
+            const n = state.arr.length;
+            
+            // 1. Redraw SVG Lines (These don't animate physically to prevent messy overlapping)
+            let svgHTML = '';
+            const activeHeapSize = state.arr.length - state.locked.length;
+            state.arr.forEach((obj, i) => {
+                const coords = getCoords(i);
+                if (!state.locked.includes(i)) {
+                    let leftChild = 2 * i + 1;
+                    let rightChild = 2 * i + 2;
+                    if (leftChild < activeHeapSize) {
+                        const childCoords = getCoords(leftChild);
+                        let strokeColor = (state.swap.includes(i) && state.swap.includes(leftChild)) ? '#f87171' : '#4b5563';
+                        let strokeWidth = (state.active.includes(i) && state.active.includes(leftChild)) || (state.swap.includes(i) && state.swap.includes(leftChild)) ? '4' : '2';
+                        svgHTML += `<line x1="${coords.x}%" y1="${coords.y}px" x2="${childCoords.x}%" y2="${childCoords.y}px" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+                    }
+                    if (rightChild < activeHeapSize) {
+                        const childCoords = getCoords(rightChild);
+                        let strokeColor = (state.swap.includes(i) && state.swap.includes(rightChild)) ? '#f87171' : '#4b5563';
+                        let strokeWidth = (state.active.includes(i) && state.active.includes(rightChild)) || (state.swap.includes(i) && state.swap.includes(rightChild)) ? '4' : '2';
+                        svgHTML += `<line x1="${coords.x}%" y1="${coords.y}px" x2="${childCoords.x}%" y2="${childCoords.y}px" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+                    }
+                }
+            });
+            svgLayer.innerHTML = svgHTML;
+
+            // 2. Animate Nodes and Array Boxes via CSS translation
+            state.arr.forEach((obj, i) => {
+                const node = nodeElements[obj.id];
+                const box = arrayElements[obj.id];
+                const coords = getCoords(i);
+
+                // Update physical coordinates (triggers CSS transition)
+                node.style.left = `calc(${coords.x}%)`;
+                node.style.top = `${coords.y}px`;
+                box.style.left = `calc(${(i + 0.5) * (100 / n)}%)`;
+
+                // Base classes
+                let nodeClass = `node absolute w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full font-bold text-base shadow-lg border-2 z-10 transition-colors `;
+                let boxClass = `array-box w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded text-base font-bold border-2 shadow transition-colors `;
+                let scaleStr = 'scale(1)';
+
+                // Apply logic-based color styling
+                if (state.locked.includes(i)) {
+                    nodeClass += 'bg-green-500 text-white border-green-600 opacity-70';
+                    boxClass += 'bg-green-500 text-white border-green-600 opacity-70';
+                } else if (state.swap.includes(i)) {
+                    nodeClass += 'bg-red-400 text-gray-900 border-red-600 z-20';
+                    boxClass += 'bg-red-400 text-gray-900 border-red-600 z-20';
+                    scaleStr = 'scale(1.15)';
+                } else if (state.active.includes(i)) {
+                    nodeClass += 'bg-yellow-400 text-gray-900 border-yellow-600 z-20';
+                    boxClass += 'bg-yellow-400 text-gray-900 border-yellow-600 z-20';
+                    scaleStr = 'scale(1.15)';
+                } else {
+                    nodeClass += 'bg-white text-gray-900 border-gray-300';
+                    boxClass += 'bg-white text-gray-900 border-gray-700';
+                }
+
+                node.className = nodeClass;
+                box.className = boxClass;
+                
+                // Keep the translate transforms alongside the dynamic scaling
+                node.style.transform = `translate(-50%, -50%) ${scaleStr}`;
+                box.style.transform = `translateX(-50%) ${scaleStr}`;
+            });
+
+            // 3. Update Message and Controls
+            statusMessage.innerHTML = state.msg;
+            document.getElementById('btn-prev').disabled = currentStep === 0;
+            document.getElementById('btn-prev').style.opacity = currentStep === 0 ? '0.5' : '1';
+            document.getElementById('btn-next').disabled = currentStep === states.length - 1;
+            document.getElementById('btn-next').style.opacity = currentStep === states.length - 1 ? '0.5' : '1';
+            
+            if (currentStep === states.length - 1 && isPlaying) togglePlay();
+        }
+
+        // --- User Input Handling ---
+        document.getElementById('btn-update').addEventListener('click', () => {
+            const inputVal = document.getElementById('array-input').value;
+            if (!inputVal) return;
+            
+            // Parse space separated numbers
+            const parsed = inputVal.split(/\s+/)
+                                   .map(s => parseInt(s.trim()))
+                                   .filter(n => !isNaN(n));
+            
+            if (parsed.length === 0) {
+                alert('Please enter valid numbers separated by spaces.');
+                return;
+            }
+            if (parsed.length > 20) {
+                alert('For optimal viewing, please limit the array to 20 numbers.');
+                return;
+            }
+
+            if (isPlaying) togglePlay();
+            
+            // Rebuild root state
+            originalArray = parsed.map((val, id) => ({ id, val }));
+            document.getElementById('current-array-display').textContent = `[${parsed.join(' ')}]`;
+            
+            // Re-initialize system
+            generateHeapSortStates();
+            initializeDOM();
+            currentStep = 0;
+            renderStep(0);
+        });
+
+        // Enter key to submit
+        document.getElementById('array-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('btn-update').click();
+        });
+
+        // --- Controls Logic ---
+        function nextStep() {
+            if (currentStep < states.length - 1) {
+                currentStep++;
+                renderStep(currentStep);
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                renderStep(currentStep);
+            }
+        }
+
+        function reset() {
+            if (isPlaying) togglePlay();
+            currentStep = 0;
+            renderStep(currentStep);
+        }
+
+        function togglePlay() {
+            const playBtn = document.getElementById('btn-play');
+            const sliderValue = parseInt(document.getElementById('speed-slider').value);
+            const speed = 2100 - sliderValue;
+            
+            if (isPlaying) {
+                clearInterval(playInterval);
+                isPlaying = false;
+                playBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+                playBtn.classList.replace('bg-orange-600', 'bg-green-600');
+                playBtn.classList.replace('hover:bg-orange-500', 'hover:bg-green-500');
+            } else {
+                if (currentStep === states.length - 1) reset();
+                
+                playInterval = setInterval(nextStep, speed);
+                isPlaying = true;
+                playBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause';
+                playBtn.classList.replace('bg-green-600', 'bg-orange-600');
+                playBtn.classList.replace('hover:bg-green-500', 'hover:bg-orange-500');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('btn-next').addEventListener('click', () => { if(!isPlaying) nextStep(); });
+        document.getElementById('btn-prev').addEventListener('click', () => { if(!isPlaying) prevStep(); });
+        document.getElementById('btn-reset').addEventListener('click', reset);
+        document.getElementById('btn-play').addEventListener('click', togglePlay);
+        
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const sliderValue = parseInt(e.target.value);
+            const speed = 2100 - sliderValue;
+            document.documentElement.style.setProperty('--anim-duration', `${speed * 0.7}ms`);
+            
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playInterval = setInterval(nextStep, speed);
+            }
+        });
+
+        // Initialize App
+        generateHeapSortStates();
+        initializeDOM();
+        const initialSliderVal = parseInt(document.getElementById('speed-slider').value);
+        document.documentElement.style.setProperty('--anim-duration', `${(2100 - initialSliderVal) * 0.7}ms`);
+        renderStep(0);
+
+    </script>
+</body>
+</html>
