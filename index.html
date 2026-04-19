@@ -33,7 +33,7 @@
     <!-- Header Section -->
     <header class="p-4 text-center bg-gray-800 shadow-lg z-10">
         <h1 class="text-2xl font-bold text-green-400 mb-1">Heap Sort Visualizer</h1>
-        <p class="text-gray-300 text-sm">Sorting Array: <span id="current-array-display" class="font-mono text-yellow-300">[5, 2, 1, 7, 3, 9, 10, 8, 6, 4]</span></p>
+        <p class="text-gray-300 text-sm">Sorting Array: <span id="current-array-display" class="font-mono text-yellow-300">[]</span></p>
         
         <!-- Custom Input Area -->
         <div class="mt-3 flex justify-center items-center gap-2 max-w-lg mx-auto">
@@ -118,8 +118,8 @@
     <script>
         // --- Algorithm Engine: Pre-compute all states ---
         let states = [];
-        // Track by Object IDs instead of values to support Duplicate numbers safely
-        let originalArray = [5, 2, 1, 7, 3, 9, 10, 8, 6, 4].map((val, id) => ({ id, val }));
+        // Start completely empty
+        let originalArray = [];
         let A = [];
         let locked = [];
 
@@ -164,6 +164,11 @@
             A = originalArray.map(obj => ({ ...obj }));
             locked = [];
             let n = A.length;
+
+            if (n === 0) {
+                pushState("Initialization: Waiting for input...", [], []);
+                return;
+            }
 
             pushState("Initialization: Starting with the unsorted array.", []);
 
@@ -221,6 +226,8 @@
             indexContainer.innerHTML = '';
             treeContainer.querySelectorAll('.node').forEach(el => el.remove());
             const n = originalArray.length;
+            
+            if (n === 0) return; // Do not draw anything if array is empty
 
             originalArray.forEach((obj, i) => {
                 const horizontalSpacing = `calc(${(i + 0.5) * (100 / n)}%)`;
@@ -393,6 +400,11 @@
         }
 
         function togglePlay() {
+            if (originalArray.length === 0) {
+                alert("Please load an array first.");
+                return;
+            }
+
             const playBtn = document.getElementById('btn-play');
             const sliderValue = parseInt(document.getElementById('speed-slider').value);
             const speed = 2100 - sliderValue;
